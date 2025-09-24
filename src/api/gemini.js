@@ -7,10 +7,24 @@ const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
 async function checkQuestionWithGemini(question) {
   const { question_statement, options, question_type } = question;
   
-  // Ensure options is an array for MCQ/MSQ, parsing if it's a JSON string
-  const optionsArray = Array.isArray(options)
-    ? options
-    : (typeof options === 'string' ? JSON.parse(options) : []);
+  // Enhanced options parsing with error handling
+  let optionsArray = [];
+  try {
+    if (Array.isArray(options)) {
+      optionsArray = options;
+    } else if (typeof options === 'string') {
+      if (options.trim().startsWith('[')) {
+        optionsArray = JSON.parse(options);
+      } else {
+        optionsArray = [options];
+      }
+    } else if (options) {
+      optionsArray = [String(options)];
+    }
+  } catch (parseError) {
+    console.warn('Error parsing options, using as single option:', parseError);
+    optionsArray = [String(options || '')];
+  }
 
   try {
     let prompt = "";
@@ -19,6 +33,11 @@ async function checkQuestionWithGemini(question) {
     switch (question_type) {
       case "MCQ":
       case "MSQ":
+        if (optionsArray.length === 0) {
+          console.warn('No options found for MCQ/MSQ question, marking as wrong');
+          return true;
+        }
+        
         prompt = `You are an expert question validator. Analyze this multiple-choice question and determine if it's correctly formulated.
 
 Question: ${question_statement}
@@ -58,6 +77,7 @@ Your response:`;
         return natResponse.includes("WRONG");
 
       case "SUB":
+      case "Subjective":
         prompt = `You are an expert question validator. Analyze this subjective question.
 
 Question: ${question_statement}
@@ -81,6 +101,16 @@ Your response:`;
     }
   } catch (error) {
     console.error("Error checking question with Gemini:", error);
+    
+    // Enhanced error handling for different types of errors
+    if (error.message?.includes('quota') || error.message?.includes('rate limit')) {
+      throw new Error('API quota exceeded or rate limited. Please wait before retrying.');
+    } else if (error.message?.includes('API key')) {
+      throw new Error('Invalid API key. Please check your Gemini API configuration.');
+    } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
+      throw new Error('Network error. Please check your internet connection.');
+    }
+    
     throw error; // Re-throw to handle in the calling function
   }
 }

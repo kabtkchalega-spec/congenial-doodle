@@ -8,7 +8,7 @@ import {
 } from '@heroicons/react/24/solid';
 import Button from './Button';
 
-const QuestionCard = ({ question, onCheck, isChecking }) => {
+const QuestionCard = ({ question, onCheck, isChecking, disabled = false }) => {
   const { question_statement, options, question_type, is_wrong, check_error } = question;
 
   const statusIcon = () => {
@@ -119,7 +119,7 @@ const QuestionCard = ({ question, onCheck, isChecking }) => {
       <div className="mt-6 pt-4 border-t border-border">
         <Button
           onClick={onCheck}
-          disabled={isChecking}
+          disabled={isChecking || disabled}
           className="w-full py-3 text-sm font-medium"
         >
           {isChecking ? (
@@ -127,6 +127,8 @@ const QuestionCard = ({ question, onCheck, isChecking }) => {
               <ArrowPathIcon className="h-4 w-4 mr-2 animate-spin" />
               Checking with Gemini AI...
             </>
+          ) : disabled ? (
+            'Auto-check in progress...'
           ) : (
             'Check Question'
           )}
